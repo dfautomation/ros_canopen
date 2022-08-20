@@ -59,6 +59,9 @@ namespace socketcan_bridge
 
   void SocketCANToTopic::setup()
     {
+      // reset error during starting.
+      connection_error_ = false;
+
       // register handler for frames and state changes.
       frame_listener_ = driver_->createMsgListenerM(this, &SocketCANToTopic::frameCallback);
       state_listener_ = driver_->createStateListenerM(this, &SocketCANToTopic::stateCallback);
@@ -87,6 +90,19 @@ namespace socketcan_bridge
   }
 
 
+  int SocketCANToTopic::get_read_count()
+  {
+      int count = read_count_;
+      read_count_ = 0;
+      return count;
+  };
+
+  bool SocketCANToTopic::get_connection_error()
+  {
+      return connection_error_;
+  };
+
+
   void SocketCANToTopic::frameCallback(const can::Frame& f)
     {
       // ROS_DEBUG("Message came in: %s", can::tostring(f, true).c_str());
@@ -103,6 +119,8 @@ namespace socketcan_bridge
           // can::tostring cannot be used for dlc > 8 frames. It causes an crash
           // due to usage of boost::array for the data array. The should always work.
           ROS_WARN("Received frame is error: %s", can::tostring(f, true).c_str());
+        } else {
+          ++read_count_;
         }
       }
 
@@ -129,5 +147,6 @@ namespace socketcan_bridge
       {
         ROS_ERROR("Error: %s, asio: %s", err.c_str(), s.error_code.message().c_str());
       }
+      connection_error_ = true;
     };
 };  // namespace socketcan_bridge

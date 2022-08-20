@@ -19,6 +19,7 @@
   <depend>rosconsole_bridge</depend>
   <depend>roscpp</depend>
   <depend>socketcan_interface</depend>
+  <depend>diagnostic_updater</depend>
 
   <test_depend>roslint</test_depend>
   <test_depend>rostest</test_depend>

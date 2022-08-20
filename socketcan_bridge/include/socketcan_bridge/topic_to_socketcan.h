@@ -39,6 +39,8 @@ class TopicToSocketCAN
   public:
     TopicToSocketCAN(ros::NodeHandle* nh, ros::NodeHandle* nh_param, can::DriverInterfaceSharedPtr driver);
     void setup();
+    int get_write_count();
+    bool get_connection_error();
 
   private:
     ros::Subscriber can_topic_;
@@ -48,6 +50,9 @@ class TopicToSocketCAN
 
     void msgCallback(const can_msgs::Frame::ConstPtr& msg);
     void stateCallback(const can::State & s);
+
+    int write_count_;
+    bool connection_error_;
 };
 
 void convertMessageToSocketCAN(const can_msgs::Frame& m, can::Frame& f)

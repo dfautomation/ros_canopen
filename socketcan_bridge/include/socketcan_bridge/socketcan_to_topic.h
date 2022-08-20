@@ -43,6 +43,8 @@ class SocketCANToTopic
     void setup(const can::FilteredFrameListener::FilterVector &filters);
     void setup(XmlRpc::XmlRpcValue filters);
     void setup(ros::NodeHandle nh);
+    int get_read_count();
+    bool get_connection_error();
 
   private:
     ros::Publisher can_topic_;
@@ -54,6 +56,9 @@ class SocketCANToTopic
 
     void frameCallback(const can::Frame& f);
     void stateCallback(const can::State & s);
+
+    int read_count_;
+    bool connection_error_;
 };
 
 void convertSocketCANToMessage(const can::Frame& f, can_msgs::Frame& m)

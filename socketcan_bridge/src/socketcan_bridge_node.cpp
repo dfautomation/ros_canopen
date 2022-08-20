@@ -32,11 +32,61 @@
 #include <socketcan_interface/xmlrpc_settings.h>
 #include <memory>
 #include <string>
+#include <diagnostic_updater/diagnostic_updater.h>
+#include <diagnostic_updater/update_functions.h>
 
+boost::shared_ptr<diagnostic_updater::Updater> diagnostic_updater_;
+
+// diagnostic variable
+bool can_connected_;
+int write_count_;
+int read_count_;
+
+void init();
+void diagnosticStatus(diagnostic_updater::DiagnosticStatusWrapper &stat);
+void callback(socketcan_bridge::TopicToSocketCAN *W, socketcan_bridge::SocketCANToTopic *R);
+
+void init()
+{
+  can_connected_ = true;
+  write_count_ = 0;
+  read_count_ = 0;
+}
+
+void diagnosticStatus(diagnostic_updater::DiagnosticStatusWrapper &stat)
+{
+  stat.add("Writes/sec", write_count_);
+  stat.add("Reads/sec", read_count_);
+
+  if (can_connected_)
+  {
+    stat.summary(diagnostic_msgs::DiagnosticStatus::OK, "OK");
+  } else {
+    stat.summary(diagnostic_msgs::DiagnosticStatus::ERROR, "CAN disconnected");
+  }
+}
+
+void callback(socketcan_bridge::TopicToSocketCAN *W, socketcan_bridge::SocketCANToTopic *R)
+{
+  write_count_ = W->get_write_count();
+  read_count_ = R->get_read_count();
+  if (W->get_connection_error() || R->get_connection_error())
+  {
+    can_connected_ = false;
+  }
+  diagnostic_updater_->update();
+}
 
 int main(int argc, char *argv[])
 {
   ros::init(argc, argv, "socketcan_bridge_node");
+
+  init();
+
+  // diagnostic updater
+  diagnostic_updater_.reset(new diagnostic_updater::Updater());
+  diagnostic_updater_->setHardwareID("AGV");
+  diagnostic_updater_->add("Status", diagnosticStatus);
 
   ros::NodeHandle nh(""), nh_param("~");
 
@@ -62,6 +112,10 @@ int main(int argc, char *argv[])
 
   socketcan_bridge::SocketCANToTopic to_topic_bridge(&nh, &nh_param, driver);
   to_topic_bridge.setup(nh_param);
+
+  ros::Timer timer = nh.createTimer(ros::Duration(1.0),
+                    boost::bind(&callback, &to_socketcan_bridge, &to_topic_bridge),
+                    false);
 
   ros::spin();
 

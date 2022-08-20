@@ -12,6 +12,7 @@ find_package(catkin REQUIRED
     rosconsole_bridge
     roscpp
     socketcan_interface
+    diagnostic_updater
 )
 
 catkin_package(
@@ -25,6 +26,7 @@ catkin_package(
     rosconsole_bridge
     roscpp
     socketcan_interface
+    diagnostic_updater
 )
 
 include_directories(

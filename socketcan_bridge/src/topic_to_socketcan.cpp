@@ -41,8 +41,23 @@ namespace socketcan_bridge
 
   void TopicToSocketCAN::setup()
     {
+      // reset error during starting.
+      connection_error_ = false;
+
       state_listener_ = driver_->createStateListener(
               std::bind(&TopicToSocketCAN::stateCallback, this, std::placeholders::_1));
+    };
+
+  int TopicToSocketCAN::get_write_count()
+    {
+      int count = write_count_;
+      write_count_ = 0;
+      return count;
+    };
+
+  bool TopicToSocketCAN::get_connection_error()
+    {
+      return connection_error_;
     };
 
   void TopicToSocketCAN::msgCallback(const can_msgs::Frame::ConstPtr& msg)
@@ -70,6 +85,9 @@ namespace socketcan_bridge
       if (!res)
       {
         ROS_ERROR("Failed to send message: %s.", can::tostring(f, true).c_str());
+        connection_error_ = true;
+      } else {
+        ++write_count_;
       }
     };
 
@@ -87,5 +105,6 @@ namespace socketcan_bridge
       {
         ROS_ERROR("Error: %s, asio: %s", err.c_str(), s.error_code.message().c_str());
       }
+      connection_error_ = true;
     };
 };  // namespace socketcan_bridge
