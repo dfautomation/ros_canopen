@@ -84,7 +84,7 @@ namespace socketcan_bridge
       bool res = driver_->send(f);
       if (!res)
       {
-        ROS_ERROR("Failed to send message: %s.", can::tostring(f, true).c_str());
+        ROS_ERROR_THROTTLE(10, "Failed to send message: %s.", can::tostring(f, true).c_str());
         connection_error_ = true;
       } else {
         ++write_count_;

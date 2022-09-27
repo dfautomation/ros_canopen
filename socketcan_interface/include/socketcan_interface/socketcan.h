@@ -223,7 +223,7 @@ protected:
 
         boost::system::error_code ec;
         boost::asio::write(socket_, boost::asio::buffer(&frame, sizeof(frame)),boost::asio::transfer_all(), ec);
-        if(ec){
+        if(0){
             ROSCANOPEN_ERROR("socketcan_interface", "FAILED " << ec);
             setErrorCode(ec);
             setNotReady();
