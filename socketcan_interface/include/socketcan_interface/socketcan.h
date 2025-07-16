@@ -223,6 +223,7 @@ protected:
 
         boost::system::error_code ec;
         boost::asio::write(socket_, boost::asio::buffer(&frame, sizeof(frame)),boost::asio::transfer_all(), ec);
+        // if(ec){
         if(0){
             ROSCANOPEN_ERROR("socketcan_interface", "FAILED " << ec);
             setErrorCode(ec);
@@ -246,8 +247,8 @@ protected:
 
                 if (frame_.can_id & fatal_error_mask_) {
                     ROSCANOPEN_ERROR("socketcan_interface", "internal error: " << input_.id);
-                    setInternalError(input_.id);
-                    setNotReady();
+                    // setInternalError(input_.id);
+                    // setNotReady();
                 }
             }else{
                 input_.is_extended = (frame_.can_id & CAN_EFF_FLAG) ? 1 :0;
