@@ -48,7 +48,7 @@ void callback(socketcan_bridge::TopicToSocketCAN *W, socketcan_bridge::SocketCAN
 
 void init()
 {
-  can_connected_ = true;
+  can_connected_ = false;
   write_count_ = 0;
   read_count_ = 0;
 }
@@ -81,11 +81,9 @@ int main(int argc, char *argv[])
 {
   ros::init(argc, argv, "socketcan_bridge_node");
 
-  init();
-
   // diagnostic updater
   diagnostic_updater_.reset(new diagnostic_updater::Updater());
-  diagnostic_updater_->setHardwareID("AGV");
+  diagnostic_updater_->setHardwareID("Hardware");
   diagnostic_updater_->add("Status", diagnosticStatus);
 
   ros::NodeHandle nh(""), nh_param("~");
@@ -93,34 +91,59 @@ int main(int argc, char *argv[])
   std::string can_device;
   nh_param.param<std::string>("can_device", can_device, "can0");
 
-  can::ThreadedSocketCANInterfaceSharedPtr driver = std::make_shared<can::ThreadedSocketCANInterface> ();
+  ros::Rate retry_rate(1.0);  // Retry every 1 second
 
-  // initialize device at can_device, 0 for no loopback.
-  if (!driver->init(can_device, 0, XmlRpcSettings::create(nh_param)))
+  can::ThreadedSocketCANInterfaceSharedPtr driver;
+
+  while (ros::ok())
   {
-    ROS_FATAL("Failed to initialize can_device at %s", can_device.c_str());
-    return 1;
+    init();
+
+    driver.reset(new can::ThreadedSocketCANInterface());
+
+    // Try to initialize
+    while (ros::ok() &&
+           !driver->init(can_device, 0, XmlRpcSettings::create(nh_param)))
+    {
+      diagnostic_updater_->update();
+      ROS_WARN("CAN %s not available. Retrying...", can_device.c_str());
+      retry_rate.sleep();
+    }
+
+    if (!ros::ok())
+      break;
+
+    ROS_INFO("Connected to %s", can_device.c_str());
+    can_connected_ = true;
+
+    // Setup bridges
+    socketcan_bridge::TopicToSocketCAN to_socketcan_bridge(&nh, &nh_param, driver);
+    to_socketcan_bridge.setup();
+
+    socketcan_bridge::SocketCANToTopic to_topic_bridge(&nh, &nh_param, driver);
+    to_topic_bridge.setup(nh_param);
+
+    ros::Timer timer = nh.createTimer(ros::Duration(1.0),
+      boost::bind(&callback, &to_socketcan_bridge, &to_topic_bridge),
+      false);
+
+    while (ros::ok())
+    {
+      ros::spinOnce();
+
+      if (!can_connected_)
+      {
+        ROS_ERROR("CAN disconnected. Attempting recovery...");
+        break;  // exit to outer reconnect loop
+      }
+    }
+
+    // Cleanup before reconnect
+    driver->shutdown();
+    driver.reset();
+
+    ROS_WARN("Reinitializing CAN driver...");
   }
-    else
-  {
-    ROS_INFO("Successfully connected to %s.", can_device.c_str());
-  }
 
-  // initialize the bridge both ways.
-  socketcan_bridge::TopicToSocketCAN to_socketcan_bridge(&nh, &nh_param, driver);
-  to_socketcan_bridge.setup();
-
-  socketcan_bridge::SocketCANToTopic to_topic_bridge(&nh, &nh_param, driver);
-  to_topic_bridge.setup(nh_param);
-
-  ros::Timer timer = nh.createTimer(ros::Duration(1.0),
-                    boost::bind(&callback, &to_socketcan_bridge, &to_topic_bridge),
-                    false);
-
-  ros::spin();
-
-  driver->shutdown();
-  driver.reset();
-
-  ros::waitForShutdown();
+  return 0;
 }
